@@ -17,12 +17,12 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
-    uint256 public constant FEE_FACTOR = 0.05 ether;
-    uint64 public constant GRACE_PERIOD = 30 days;
+    uint256 public constant FEE_FACTOR = 0.05 ether; // @ques 5%?
+    uint64 public constant GRACE_PERIOD = 30 days; // @ques Some period, don't know what
 
-    uint64 public immutable end = uint64(block.timestamp) + GRACE_PERIOD;
+    uint64 public immutable end = uint64(block.timestamp) + GRACE_PERIOD; // @ques Some kind of end_time, wait...it's uint64? @note But this doesn't seem to be an issue tho, as it will be a damn long time to get the block.timestamp to even on the max value of uint64
 
-    address public feeRecipient;
+    address public feeRecipient; // Probably an address to receive fees
 
     error InvalidAmount(uint256 amount);
     error InvalidBalance();
@@ -43,7 +43,7 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
      * @inheritdoc IERC3156FlashLender
      */
     function maxFlashLoan(address _token) public view nonReadReentrant returns (uint256) {
-        if (address(asset) != _token) {
+        if (address(asset) != _token) { // Here asset means the ERC20 tokens in the vault (ERC4626)
             return 0;
         }
 
@@ -58,8 +58,8 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
             revert UnsupportedCurrency();
         }
 
-        if (block.timestamp < end && _amount < maxFlashLoan(_token)) {
-            return 0;
+        if (block.timestamp < end && _amount < maxFlashLoan(_token)) { // @note block.timestamp uint256 is compared to `end` which is originally uint64, and is now converted to uint256
+            return 0; // @note If someone tries to get the flashloan fee before the end of the grace period, the fee is 0
         } else {
             return _amount.mulWadUp(FEE_FACTOR);
         }
@@ -82,7 +82,7 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
         if (amount == 0) revert InvalidAmount(0); // fail early
         if (address(asset) != _token) revert UnsupportedCurrency(); // enforce ERC3156 requirement
         uint256 balanceBefore = totalAssets();
-        if (convertToShares(totalSupply) != balanceBefore) revert InvalidBalance(); // enforce ERC4626 requirement
+        if (convertToShares(totalSupply) != balanceBefore) revert InvalidBalance(); // enforce ERC4626 requirement  // @audit feels like `convertToAssets` be used here. However, I am quite skeptical about that. But one more thing, it reverts if the totalAssets (i.e. the balance of ERC20 tokens in the vault) is not equal to the totalSupply (i.e. the combined value of shares in this vault after converting into assets). This mean, if anyone supplied some ERC20 tokens into this vault, then the revert chances are high
 
         // transfer tokens out + execute callback on receiver
         ERC20(_token).safeTransfer(address(receiver), amount);
