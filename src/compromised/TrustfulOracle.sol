@@ -27,12 +27,12 @@ contract TrustfulOracle is AccessControlEnumerable {
         }
         for (uint256 i = 0; i < sources.length;) {
             unchecked {
-                _grantRole(TRUSTED_SOURCE_ROLE, sources[i]);
+                _grantRole(TRUSTED_SOURCE_ROLE, sources[i]); // @ques Why not keeping the sources in some state variable, and rather just granting the role without having any kind of history into the contract?
                 ++i;
             }
         }
         if (enableInitialization) {
-            _grantRole(INITIALIZER_ROLE, msg.sender);
+            _grantRole(INITIALIZER_ROLE, msg.sender); // @note So the deployer have some kind of initialization power...hmmm
         }
     }
 
@@ -42,17 +42,17 @@ contract TrustfulOracle is AccessControlEnumerable {
         onlyRole(INITIALIZER_ROLE)
     {
         // Only allow one (symbol, price) per source
-        require(sources.length == symbols.length && symbols.length == prices.length);
+        require(sources.length == symbols.length && symbols.length == prices.length); // @note Wait a sec, who's checking whether these sources are as same as that of the one sent in the constructor? Hmm, but it doesn't give the TRUSTED_SOURCE_ROLE to the newly added source if there's any
         for (uint256 i = 0; i < sources.length;) {
             unchecked {
-                _setPrice(sources[i], symbols[i], prices[i]);
+                _setPrice(sources[i], symbols[i], prices[i]); // @note Prices can be set by the deployer of the contract, anytime, but just once
                 ++i;
             }
         }
         renounceRole(INITIALIZER_ROLE, msg.sender);
     }
 
-    function postPrice(string calldata symbol, uint256 newPrice) external onlyRole(TRUSTED_SOURCE_ROLE) {
+    function postPrice(string calldata symbol, uint256 newPrice) external onlyRole(TRUSTED_SOURCE_ROLE) { // @note Only trusted sources can post prices, anytime
         _setPrice(msg.sender, symbol, newPrice);
     }
 
